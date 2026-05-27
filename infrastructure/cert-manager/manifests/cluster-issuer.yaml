@@ -1,0 +1,72 @@
+# --- OPTION 1: Self-signed CA (lab/internal — không cần domain hay public IP) ---
+# Dùng cho môi trường internal, cần import CA cert vào browser
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-cluster-issuer
+spec:
+  selfSigned: {}
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: beelogistics-internal-ca
+  secretName: internal-ca-root-secret
+  duration: 87600h  # 10 năm
+  renewBefore: 8760h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-cluster-issuer
+    kind: ClusterIssuer
+
+---
+# CA Issuer — dùng cho tất cả internal services
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: ca-cluster-issuer
+spec:
+  ca:
+    secretName: internal-ca-root-secret
+
+---
+# --- OPTION 2: Let's Encrypt PRODUCTION (cần domain + public IP) ---
+# Uncomment và điền email khi expose services ra internet
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-prod
+# spec:
+#   acme:
+#     server: https://acme-v02.api.letsencrypt.org/directory
+#     email: your-email@beelogistics.com   # ← thay email thật
+#     privateKeySecretRef:
+#       name: letsencrypt-prod
+#     solvers:
+#       - http01:
+#           ingress:
+#             class: nginx
+
+---
+# --- OPTION 3: Let's Encrypt STAGING (test trước khi dùng production) ---
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-staging
+# spec:
+#   acme:
+#     server: https://acme-staging-v02.api.letsencrypt.org/directory
+#     email: your-email@beelogistics.com
+#     privateKeySecretRef:
+#       name: letsencrypt-staging
+#     solvers:
+#       - http01:
+#           ingress:
+#             class: nginx

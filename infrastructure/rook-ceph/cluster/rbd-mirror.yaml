@@ -1,0 +1,36 @@
+# RBD Mirror Daemon — đồng bộ RBD images giữa 2 cluster (DR)
+# Cần chạy ở CẢ 2 cluster (HN và HP)
+# Sau khi apply, dùng script bootstrap-rbd-peer.sh để kết nối 2 cluster
+apiVersion: ceph.rook.io/v1
+kind: CephRBDMirror
+metadata:
+  name: rbd-mirror
+  namespace: rook-ceph
+spec:
+  count: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+---
+# Ví dụ: Enable mirroring cho một pool cụ thể
+# Thêm spec.mirroring vào CephBlockPool hiện có
+# ---
+# apiVersion: ceph.rook.io/v1
+# kind: CephBlockPool
+# metadata:
+#   name: replicapool   # tên pool cần mirror
+#   namespace: rook-ceph
+# spec:
+#   replicated:
+#     size: 3
+#   mirroring:
+#     enabled: true
+#     mode: image          # image mode: mirror từng image riêng lẻ (linh hoạt hơn pool mode)
+#     snapshotSchedules:
+#       - interval: "24h"  # snapshot mỗi 24h
+#         startTime: "02:00:00-00:00"

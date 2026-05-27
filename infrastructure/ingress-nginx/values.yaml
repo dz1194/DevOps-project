@@ -1,0 +1,43 @@
+controller:
+  replicaCount: 2
+
+  service:
+    type: LoadBalancer
+    annotations: {}
+
+  ingressClassResource:
+    name: nginx
+    enabled: true
+    default: true
+
+  config:
+    use-forwarded-headers: "true"
+    proxy-body-size: "100m"
+    keep-alive: "75"
+    ssl-protocols: "TLSv1.2 TLSv1.3"
+
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: monitoring
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - ingress-nginx
+            topologyKey: kubernetes.io/hostname

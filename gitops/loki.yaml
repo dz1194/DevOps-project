@@ -1,0 +1,38 @@
+# PLG Stack — Loki (log storage) + datasource ConfigMap
+# Alloy (log collector) quản lý trong gitops/alloy.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    # Source 1: Loki Helm chart
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: ">=6.0.0 <7.0.0"
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/infrastructure/loki/values.yaml
+    # Source 2: Git values reference
+    - repoURL: https://github.com/dz1194/DevOps-project.git
+      targetRevision: HEAD
+      ref: values
+    # Source 3: Plain YAML manifests (datasource ConfigMap)
+    - repoURL: https://github.com/dz1194/DevOps-project.git
+      targetRevision: HEAD
+      path: infrastructure/loki/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

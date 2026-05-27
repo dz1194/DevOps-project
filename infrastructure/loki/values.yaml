@@ -1,0 +1,80 @@
+# Loki Helm values — Single Binary mode (phù hợp lab 3 nodes)
+# Chart: grafana/loki
+
+loki:
+  commonConfig:
+    replication_factor: 1
+
+  storage:
+    type: filesystem
+
+  auth_enabled: false
+
+  # Schema bắt buộc từ Loki v3+
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  limits_config:
+    retention_period: 7d
+    ingestion_rate_mb: 8
+    ingestion_burst_size_mb: 16
+
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+
+  server:
+    http_listen_port: 3100
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Single Binary: chạy tất cả components trong 1 pod
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  # Dùng Ceph persistent storage (khác với 06-logging.sh dùng emptyDir)
+  persistence:
+    enabled: true
+    storageClass: rook-ceph-block
+    size: 10Gi
+    accessMode: ReadWriteOnce
+
+# Tắt cache — tiết kiệm RAM, không cần cho lab
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Tắt distributed components (dùng SingleBinary thay)
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+# Tắt self-monitoring để giảm tải
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false

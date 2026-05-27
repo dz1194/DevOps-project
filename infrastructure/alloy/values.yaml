@@ -1,0 +1,78 @@
+# Grafana Alloy Helm values
+# DaemonSet chạy trên tất cả nodes, thu thập logs từ pods và đẩy vào Loki
+# Alloy là thế hệ kế tiếp của Promtail (River config language)
+
+alloy:
+  configMap:
+    create: true
+    content: |-
+      // ── Discover tất cả pods trong cluster ──────────────────
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // ── Relabel: gắn metadata vào log labels ────────────────
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "__path__"
+          replacement   = "/var/log/pods/*$1/*.log"
+        }
+      }
+
+      // ── Đọc log files từ node ────────────────────────────────
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // ── Đẩy log vào Loki ─────────────────────────────────────
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+        }
+      }
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Chạy trên tất cả nodes kể cả control-plane
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+
+# DaemonSet để chạy 1 pod trên mỗi node
+controller:
+  type: daemonset

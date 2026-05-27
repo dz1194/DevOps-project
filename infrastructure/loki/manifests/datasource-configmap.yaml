@@ -1,0 +1,21 @@
+# Grafana sidecar tự động detect ConfigMap có label grafana_datasource=1
+# và add Loki làm datasource mà không cần restart Grafana
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-datasource
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |-
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        url: http://loki-gateway.monitoring.svc.cluster.local
+        access: proxy
+        isDefault: false
+        jsonData:
+          maxLines: 1000
+          timeout: 60

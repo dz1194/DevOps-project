@@ -1,0 +1,22 @@
+crds:
+  enabled: true
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: true
+    namespace: monitoring
+
+# Annotation-based issuer selection for Ingress resources
+ingressShim:
+  defaultIssuerName: "ca-cluster-issuer"
+  defaultIssuerKind: "ClusterIssuer"

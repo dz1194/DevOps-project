@@ -1,0 +1,19 @@
+# LoadBalancer Service cho Ceph Dashboard
+# Tạo service riêng thay vì patch service Rook quản lý (patch sẽ bị revert)
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-mgr-dashboard-lb
+  namespace: rook-ceph
+  labels:
+    app: rook-ceph-mgr
+spec:
+  type: LoadBalancer
+  ports:
+    - name: dashboard
+      port: 80
+      protocol: TCP
+      targetPort: 7000
+  selector:
+    app: rook-ceph-mgr
+    rook_cluster: rook-ceph

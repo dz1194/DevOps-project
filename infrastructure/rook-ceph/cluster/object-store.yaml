@@ -1,0 +1,83 @@
+# Ceph RGW — S3-compatible Object Storage
+# Tốt hơn of1-cloud: simplified single-zone (không cần multi-realm cho single cluster)
+# of1-cloud dùng multi-realm/zone vì multi-site replication — không cần thiết ở đây
+#
+# deviceClass bị bỏ — VMware virtual disk không có SSD/HDD classification.
+# Trên production (physical hardware), thêm lại:
+#   metadataPool.deviceClass: ssd
+#   dataPool.deviceClass: hdd
+# Kiểm tra device class hiện có: ceph osd crush dump | grep -A1 '"class"'
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: object-store
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+    parameters:
+      bulk: "true"
+  gateway:
+    instances: 1
+    port: 80
+  healthCheck:
+    startupProbe:
+      disabled: false
+    readinessProbe:
+      disabled: false
+
+---
+# StorageClass cho Object Bucket Claims (app tự tạo bucket qua OBC)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-bucket
+provisioner: rook-ceph.ceph.rook.io/bucket
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: object-store
+  objectStoreNamespace: rook-ceph
+
+---
+# Admin user — credentials được Rook tạo trong Secret rook-ceph-object-user-object-store-s3-admin
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: s3-admin
+  namespace: rook-ceph
+spec:
+  store: object-store
+  displayName: "S3 Admin"
+  capabilities:
+    user: "*"
+    bucket: "*"
+
+---
+# LoadBalancer để expose S3 endpoint ra ngoài cluster
+# Rook tạo rook-ceph-rgw-object-store với ClusterIP, service này thêm LB
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-rgw-object-store-lb
+  namespace: rook-ceph
+  labels:
+    app: rook-ceph-rgw
+    rook_object_store: object-store
+spec:
+  type: LoadBalancer
+  ports:
+    - name: s3
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: rook-ceph-rgw
+    rook_object_store: object-store
